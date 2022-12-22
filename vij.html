@@ -1,0 +1,321 @@
+<head>
+	<title>Sound Visualizer</title>
+	<script src="https://cdn.jsdelivr.net/npm/p5@1.1.9/lib/p5.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/p5@1.1.9/lib/addons/p5.sound.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/sketch.js@1.1.9/lib/sketch.min.js"></script>
+	<script src="https://unpkg.com/browse/spotify-web-api-js@^0.3.3/dist/spotify-web-api.js"></script>
+	<script src="https://unpkg.com/browse/wavesurfer.js@3.3.3/dist/wavesurfer.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/13.7.4/Tone.min.js"></script>
+</head>
+
+<body>
+	<div id="sound-visualizer">
+		<div id="controls">
+			<div id="audio-input-controls">
+				<input type="file" id="audio-file-input" onchange="handleAudioInput(this.files[0])" />
+				<button id="spotify-search-button" onclick="handleSpotifySearch()">Search Spotify</button>
+			</div>
+			<div id="visual-controls">
+				<div id="color-controls"><input type="color" id="color-controls" value='#000000' /></div>
+				<div id="shape-controls"><select id="shape-controls">
+						<option value="rectangle">Rectangle</option>
+						<option value="circle">Circle</option>
+						<option value="triangle">Triangle</option>
+					</select></div>
+				<div id="motion-controls"><select id="motion-controls">
+						<option value="left-to-right">Left to Right</option>
+						<option value="right-to-left">Right to Left</option>
+						<option value="up-to-down">Up to Down</option>
+						<option value="down-to-up">Down to Up</option>
+						<option value="random">Random</option>
+					</select></div>
+				<div id="transition-controls"><select id="transition-controls">
+						<option value="fade">Fade</option>
+						<option value="crossfade">Crossfade</option>
+						<option value="wipe">Wipe</option>
+					</select></div>
+				<div id="bass-intensity-controls"><input type="range" min="0" max="10" step="1" value="5" id="bass-intensity-controls" /></div>
+				<div id="theme-controls"><select id="theme-controls">
+						<option value="dark">Dark</option>
+						<option value="light">Light</option>
+						<option value="minimal">Minimal</option>
+					</select></div>
+				<div id="visual-effects-controls"><select id="visual-effects-controls">
+						<option value="none">None</option>
+						<option value="patterns">Patterns</option>
+						<option value="distortion">Distortion</option>
+					</select></div>
+				<div id="audio-channel-controls"><select id="audio-channel-controls">
+						<option value="all">All</option>
+						<option value="vocals">Vocals</option>
+						<option value="instruments">Instruments</option>
+					</select></div>
+				<div id="background-image-controls"><input type="file" id="background-image-controls" /></div>
+			</div>
+			<button id="save-video-button" onclick="handleVideoSave()">Save Video</button>
+		</div>
+		<div id="canvas"></div>
+	</div>
+	<script>
+		// Setup p5 sketch
+		const sketch = (p) => {
+			let song, analyzer, waveform, audioFile;
+			// Preload necessary assets
+			p.preload = () => {
+				// Preload all themes/templates
+				p.preloadThemes = () => {
+					let themes = ['dark', 'light', 'minimal']; // Add all themes/templates to this array
+					themes.forEach((theme) => {
+						p.loadImage(theme);
+					});
+				}
+				// Preload all images for background
+				p.preloadImages = () => {
+					let images = ['background1.png', 'background2.png', 'background3.png']; // Add all images to this array
+					images.forEach((image) => {
+						p.loadImage(image);
+					});
+				}
+				p.preloadThemes();
+				p.preloadImages();
+			}
+			// Create canvas, waveform and analyzer
+			p.setup = () => {
+				let canvas = p.createCanvas(800, 600);
+				canvas.parent('canvas');
+				// Create waveform
+				waveform = p.createWaveform();
+				waveform.connect();
+				waveform.setInput(audioFile);
+				// Create audio analyzer
+				analyzer = new Tone.Analyser('fft', 1024);
+				analyzer.connect(waveform);
+			}
+			// Draw waveform on canvas
+			p.draw = () => {
+				// Clear canvas
+				p.clear();
+				// Analyze audio data
+				const spectrum = analyzer.getValue();
+				// Get user input from visual controls
+				const color = p.getColorControls();
+				const shape = p.getShapeControls();
+				const motion = p.getMotionControls();
+				const transition = p.getTransitionControls();
+				const bassIntensity = p.getBassIntensityControls();
+				const theme = p.getThemeControls();
+				const visualEffects = p.getVisualEffectsControls();
+				const audioChannels = p.getAudioChannelsControls();
+				const backgroundImage = p.getBackgroundImageControls();
+				// Draw waveform on canvas
+				p.drawWaveform(spectrum, color, shape, motion, transition, bassIntensity, theme, visualEffects, audioChannels, backgroundImage);
+			}
+			p.connectWaveform = () => {
+				waveform.connect();
+				waveform.setInput(audioFile);
+			}
+			// Handle user input from visual controls
+			p.getColorControls = () => {
+				// Get the user's selected color from the UI
+				const color = document.getElementById('color-controls').value;
+				return color;
+			}
+			p.getShapeControls = () => {
+				// Get the user's selected shape from the UI
+				const shape = document.getElementById('shape-controls').value;
+				return shape;
+			}
+			p.getMotionControls = () => {
+				// Get the user's selected motion from the UI
+				const motion = document.getElementById('motion-controls').value;
+				return motion;
+			}
+			p.getTransitionControls = () => {
+				// Get the user's selected transition from the UI
+				const transition = document.getElementById('transition-controls').value;
+				return transition;
+			}
+			p.getBassIntensityControls = () => {
+				// Get the user's selected bass intensity from the UI
+				const bassIntensity = document.getElementById('bass-intensity-controls').value;
+				return bassIntensity;
+			}
+			p.getThemeControls = () => {
+				// Get the user's selected theme from the UI
+				const theme = document.getElementById('theme-controls').value;
+				return theme;
+			}
+			p.getVisualEffectsControls = () => {
+				// Get the user's selected visual effects from the UI
+				const visualEffects = document.getElementById('visual-effects-controls').value;
+				return visualEffects;
+			}
+			p.getAudioChannelsControls = () => {
+				// Get the user's selected audio channels from the UI
+				const audioChannels = document.getElementById('audio-channel-controls').value;
+				return audioChannels;
+			}
+			p.getBackgroundImageControls = () => {
+				// Get the user's selected background image from the UI
+				const backgroundImage = document.getElementById('background-image-controls').value;
+				return backgroundImage;
+			}
+			p.drawWaveform = (spectrum, color, shape, motion, transition, bassIntensity, theme, visualEffects, audioChannels, backgroundImage) => {
+				// Clear canvas
+				p.clear();
+				// Set the fill color to the user's selected color
+				p.fill(color);
+				// Disable stroke
+				p.noStroke();
+				// Begin shape
+				p.beginShape();
+				// Loop through audio spectrum
+				spectrum.forEach((value, index) => {
+					// Map x and y positions based on audio spectrum data
+					let x = p.map(index, 0, spectrum.length, 0, p.width);
+					let y = p.map(value, 0, 255, p.height, 0);
+					// Draw the shape based on user input
+					if (shape === 'rectangle') {
+						p.rect(x, y, 10, 10);
+					} else if (shape === 'circle') {
+						p.ellipse(x, y, 10, 10);
+					} else if (shape === 'triangle') {
+						p.triangle(x, y, 10, 10);
+					}
+					// Draw motion based on user input
+					if (motion === 'left-to-right') {
+						x += 10;
+					} else if (motion === 'right-to-left') {
+						x -= 10;
+					} else if (motion === 'up-to-down') {
+						y += 10;
+					} else if (motion === 'down-to-up') {
+						y -= 10;
+					} else if (motion === 'random') {
+						// Randomize x and y
+						x += Math.random() * 10;
+						y += Math.random() * 10;
+					}
+					// Draw transition based on user input
+					if (transition === 'fade') {
+						p.fade(x, y, 10, 10);
+					} else if (transition === 'crossfade') {
+						p.crossfade(x, y, 10, 10);
+					} else if (transition === 'wipe') {
+						p.wipe(x, y, 10, 10);
+					}
+					// Adjust shape size based on bass intensity
+					let size = p.map(bassIntensity, 0, 10, 10, 20);
+					// Apply theme/template based on user input
+					p.applyTheme = (theme) => {
+						if (theme === 'dark') {
+							p.image(p.loadImage('dark'), 0, 0);
+						} else if (theme === 'light') {
+							p.image(p.loadImage('light'), 0, 0);
+						} else if (theme === 'minimal') {
+							p.image(p.loadImage('minimal'), 0, 0);
+						}
+					}
+					// Apply visual effect based on user input
+					if (visualEffects === 'patterns') {
+						p.patterns(x, y, size);
+					} else if (visualEffects === 'distortion') {
+						p.distortion(x, y, size);
+					}
+					// Split audio channels based on user input
+					if (audioChannels === 'vocals') {
+						p.vocals(x, y, size);
+					} else if (audioChannels === 'instruments') {
+						p.instruments(x, y, size);
+					}
+					p.fade = (x, y, width, height) => {
+						// Fade out the shape
+						p.fill(p.color(p.red(color), p.green(color), p.blue(color), p.alpha(color) * 0.8));
+						p.rect(x, y, width, height);
+					}
+					p.crossfade = (x, y, width, height) => {
+						// Crossfade the shape
+						p.fill(p.color(p.red(color) * 0.8, p.green(color) * 0.8, p.blue(color) * 0.8, p.alpha(color)));
+						p.rect(x, y, width, height);
+					}
+					p.wipe = (x, y, width, height) => {
+						// Wipe the shape
+						p.fill(p.color(p.red(color), p.green(color), p.blue(color), p.alpha(color) * 0.5));
+						p.rect(x, y, width, height);
+					}
+					p.applyTheme = (theme) => {
+						// Apply the selected theme/template
+						p.imageMode(CENTER);
+						p.image(theme, 400, 300);
+					}
+					p.patterns = (x, y, size) => {
+						// Draw patterns
+						p.fill(p.color(p.red(color) * 0.5, p.green(color) * 0.5, p.blue(color) * 0.5, p.alpha(color)));
+						p.rect(x, y, size, size);
+					}
+					p.distortion = (x, y, size) => {
+						// Draw distortion
+						p.fill(p.color(p.red(color) * 0.2, p.green(color) * 0.2, p.blue(color) * 0.2, p.alpha(color)));
+						p.rect(x, y, size, size);
+					}
+					p.vocals = (x, y, size) => {
+						// Draw vocals
+						p.fill(p.color(p.red(color) * 0.3, p.green(color) * 0.3, p.blue(color) * 0.3, p.alpha(color)));
+						p.rect(x, y, size, size);
+					}
+					p.instruments = (x, y, size) => {
+						// Draw instruments
+						p.fill(p.color(p.red(color) * 0.4, p.green(color) * 0.4, p.blue(color) * 0.4, p.alpha(color)));
+						p.rect(x, y, size, size);
+					}
+					p.drawBackgroundImage = (backgroundImage) => {
+						// Draw the background image
+						p.imageMode(CENTER);
+						p.image(backgroundImage, 400, 300);
+					}
+					// Add vertex
+					p.vertex(x, y);
+				});
+				// End shape
+				p.endShape();
+			}
+			// Handle audio file input
+			p.handleAudioInput = (file) => {
+				// Create an audio file from the file input
+				p.createAudioFile = (file) => {
+					let audioFile = p.createAudio(file);
+					return audioFile;
+				}
+				audioFile = p.createAudioFile(file);
+				// Play the audio file
+				audioFile.play();
+				// Connect the waveform
+				p.connectWaveform();
+			}
+			// Handle Spotify search
+			p.handleSpotifySearch = () => {
+				// Create an audio file from the Spotify search
+				p.createAudioFileFromSpotify = (searchTerm) => {
+					// Search Spotify for the search term
+					let track = Spotify.search(searchTerm);
+					// Create an audio file from the Spotify track
+					let audioFile = p.createAudio(track.preview_url);
+					return audioFile;
+				}
+				audioFile = p.createAudioFileFromSpotify(document.getElementById('spotify-search-button').value);
+				// Connect the waveform
+				p.connectWaveform();
+			}
+			// Handle video saving
+			p.handleVideoSave = () => {
+				// Stop the audio file
+				audioFile.stop();
+				// Save the canvas as a video
+				saveCanvas(document.getElementById('canvas'), 'visualizer', 'mp4');
+			}
+		}
+		let myp5 = new p5(sketch);
+	</script>
+</body>
+
+</html>
